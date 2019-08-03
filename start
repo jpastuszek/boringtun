@@ -1,0 +1,23 @@
+#!/bin/sh
+boringtun --verbosity debug -f --disable-drop-privileges true wg0 &
+sleep 2
+
+wg setconf wg0 /etc/wireguard/wg0.conf
+wg show all
+
+ip link set up dev wg0
+ip addr add 172.17.1.1/24 dev wg0
+ip route add 172.17.1.0/24 dev wg0 scope link src 172.17.1.1
+
+#ifconfig wg0 up
+
+iptables -t nat -D POSTROUTING -o bond0 -j MASQUERADE
+iptables -t nat -A POSTROUTING -o bond0 -j MASQUERADE
+
+iptables -L -t nat -v
+ifconfig wg0
+ip route
+
+tcpdump -i wg0 'udp port 53 or tcp[tcpflags] == tcp-syn' &
+
+while sleep 30; do wg show all; wg show all endpoints; done
